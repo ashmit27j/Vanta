@@ -1,0 +1,31 @@
+{
+  "_comment": "Hand-curated subset of ATT&CK techniques relevant to a Linux victim host and covered (or coverable) by Atomic Red Team's Linux atomics. Not the full matrix -- extend as the lab grows. 'remote' = better exercised as a hands-on attack staged from kali-vm than as a locally-run atomic.",
+  "techniques": [
+    {"id": "T1059.004", "name": "Unix Shell", "tactic": "execution", "remote": false},
+    {"id": "T1204.002", "name": "Malicious File", "tactic": "execution", "remote": false},
+    {"id": "T1053.003", "name": "Cron", "tactic": "persistence", "remote": false},
+    {"id": "T1136.001", "name": "Create Account: Local Account", "tactic": "persistence", "remote": false},
+    {"id": "T1543.002", "name": "Create or Modify System Process: Systemd Service", "tactic": "persistence", "remote": false},
+    {"id": "T1548.001", "name": "Abuse Elevation Control Mechanism: Setuid and Setgid", "tactic": "privilege-escalation", "remote": false},
+    {"id": "T1548.003", "name": "Abuse Elevation Control Mechanism: Sudo and Sudo Caching", "tactic": "privilege-escalation", "remote": false},
+    {"id": "T1055", "name": "Process Injection", "tactic": "defense-evasion", "remote": false},
+    {"id": "T1070.002", "name": "Indicator Removal: Clear Linux or Mac System Logs", "tactic": "defense-evasion", "remote": false},
+    {"id": "T1070.003", "name": "Indicator Removal: Clear Command History", "tactic": "defense-evasion", "remote": false},
+    {"id": "T1222.002", "name": "File and Directory Permissions Modification: Linux and Mac File and Directory Permissions Modification", "tactic": "defense-evasion", "remote": false},
+    {"id": "T1027", "name": "Obfuscated Files or Information", "tactic": "defense-evasion", "remote": false},
+    {"id": "T1003.008", "name": "OS Credential Dumping: /etc/passwd and /etc/shadow", "tactic": "credential-access", "remote": false},
+    {"id": "T1552.001", "name": "Unsecured Credentials: Credentials In Files", "tactic": "credential-access", "remote": false},
+    {"id": "T1082", "name": "System Information Discovery", "tactic": "discovery", "remote": false},
+    {"id": "T1087.001", "name": "Account Discovery: Local Account", "tactic": "discovery", "remote": false},
+    {"id": "T1057", "name": "Process Discovery", "tactic": "discovery", "remote": false},
+    {"id": "T1046", "name": "Network Service Discovery", "tactic": "discovery", "remote": true},
+    {"id": "T1590", "name": "Gather Victim Network Information", "tactic": "reconnaissance", "remote": true},
+    {"id": "T1105", "name": "Ingress Tool Transfer", "tactic": "command-and-control", "remote": false},
+    {"id": "T1071.001", "name": "Application Layer Protocol: Web Protocols", "tactic": "command-and-control", "remote": true},
+    {"id": "T1021.004", "name": "Remote Services: SSH", "tactic": "lateral-movement", "remote": true},
+    {"id": "T1210", "name": "Exploitation of Remote Services", "tactic": "lateral-movement", "remote": true},
+    {"id": "T1560.001", "name": "Archive Collected Data: Archive via Utility", "tactic": "collection", "remote": false},
+    {"id": "T1041", "name": "Exfiltration Over C2 Channel", "tactic": "exfiltration", "remote": false},
+    {"id": "T1489", "name": "Service Stop", "tactic": "impact", "remote": false}
+  ]
+}

@@ -32,8 +32,11 @@ samples/*
 !samples/.gitkeep
 !samples/README.md
 
-# --- Journal artifacts that shouldn't be tracked as noise (evidence bundles) ---
+# --- Journal artifacts that shouldn't be tracked as noise ---
+# real-sample detonation evidence bundles (Prompt 8)
 journal/evidence/
+# in-progress `purplelab run` timestamps (ephemeral)
+journal/.state/
 
 # --- OS / editor cruft ---
 .DS_Store

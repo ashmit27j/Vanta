@@ -1,0 +1,21 @@
+# Non-secret Vanta lab settings. Wazuh credentials go in a gitignored .env
+# instead (see .env.example) -- never put a password here.
+
+# siem-vm's IP on VMnet10. Fill in after the VM build (docs/VM-BUILD-RUNBOOK.md).
+siem_vm_ip: "192.168.110.10"
+
+# Wazuh indexer API base URL. Leave unset to derive from siem_vm_ip as
+# https://<siem_vm_ip>:9200.
+# wazuh_base_url: "https://192.168.110.10:9200"
+
+# Wazuh dashboard/indexer uses a self-signed cert by default in this lab.
+wazuh_verify_tls: false
+
+# Name the Wazuh agent enrolls under on victim-vm (set during Prompt 4).
+victim_agent_name: "victim-vm"
+
+# Optional: lets `purplelab run` execute the atomic over SSH instead of just
+# printing the command. Leave commented out until victim-vm exists and is
+# reachable -- `purplelab run` prints the manual command instead when unset.
+# victim_ssh_host: "192.168.110.20"
+# victim_ssh_user: "ubuntu"
