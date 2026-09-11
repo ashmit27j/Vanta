@@ -20,7 +20,13 @@ real-sample detonation behind containment checks.
   offline, light/dark aware) from `detections/` + `journal/`. Both files are
   generated, gitignored, and regenerated on demand -- covered by
   `tests/test_coverage.py`.
-- **Prompt 8** — `containment-check`, `detonate`
+- **Prompt 8 (done)** — `containment-check` (4 fail-closed gates: victim-vm
+  egress, DNS-via-sinkhole, Wazuh agent status via the manager API, kali-vm
+  forwarding/no-bridging) and `detonate` (reverts victim-vm via `vmrun`,
+  re-runs the containment gate, hashes + executes the sample, collects
+  auditd/Sysmon/Wazuh/INetSim telemetry into `journal/evidence/`). The
+  safety-gate *logic* is fully tested with injected fakes (no real SSH/VMware
+  needed); actually reverting/detonating needs live VMs.
 
 ## Install
 

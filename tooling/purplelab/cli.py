@@ -52,6 +52,17 @@ def build_parser() -> argparse.ArgumentParser:
     coverage = sub.add_parser("coverage", help="Generate the ATT&CK Navigator layer + HTML coverage report")
     coverage.set_defaults(func=commands.cmd_coverage)
 
+    containment_check = sub.add_parser(
+        "containment-check", help="Mandatory pre-flight gate: verify victim-vm/kali-vm isolation before detonating"
+    )
+    containment_check.set_defaults(func=commands.cmd_containment_check)
+
+    detonate = sub.add_parser("detonate", help="Safety-gated real-sample detonation workflow")
+    detonate.add_argument("sample_path", help="Path to the sample ON victim-vm (never on this host)")
+    detonate.add_argument("--exec-cmd", default=None, help="Override the command used to execute the sample")
+    detonate.add_argument("--window-seconds", type=int, default=300, help="Telemetry collection window")
+    detonate.set_defaults(func=commands.cmd_detonate)
+
     return parser
 
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-from . import atomics, coverage, journal, sigma_pipeline, state, wazuh
+from . import atomics, containment, coverage, detonate, journal, sigma_pipeline, state, wazuh
 from .config import load_config
 
 
@@ -166,6 +166,56 @@ def cmd_coverage(args) -> int:
     print(f"Wrote {report_path}")
     print("\nLoad the layer at https://mitre-attack.github.io/attack-navigator/ -> "
           "Open Existing Layer -> Upload from local -> select the JSON file above.")
+    return 0
+
+
+def cmd_containment_check(args) -> int:
+    config = load_config()
+    results = containment.run_all(config)
+
+    all_passed = all(r.passed for r in results)
+    for r in results:
+        status = "PASS" if r.passed else "FAIL"
+        print(f"[{status}] {r.name} -- {r.detail}")
+
+    if not all_passed:
+        print("\n" + "!" * 60)
+        print("! CONTAINMENT NOT CONFIRMED -- DO NOT DETONATE. Fix the network first.")
+        print("!" * 60)
+        return 1
+
+    print("\nContainment confirmed.")
+    return 0
+
+
+def cmd_detonate(args) -> int:
+    config = load_config()
+    print("=" * 60)
+    print("SAFETY-GATED DETONATION -- this will revert victim-vm, verify containment,")
+    print(f"then execute {args.sample_path} on victim-vm. Refusing to proceed on any gate failure.")
+    print("=" * 60)
+
+    if not _prompt_yes_no(f"Confirm: {args.sample_path} was downloaded directly onto victim-vm "
+                           "(never onto this host)?", default=False):
+        print("Aborted -- re-download the sample directly onto victim-vm first (see docs/CONTAINMENT-AND-SAFETY.md).")
+        return 1
+
+    try:
+        result = detonate.run_detonation(
+            config,
+            sample_path=args.sample_path,
+            exec_cmd=args.exec_cmd,
+            window_seconds=args.window_seconds,
+        )
+    except detonate.DetonationAborted as exc:
+        print(f"\nABORTED -- {exc}")
+        return 1
+
+    print(f"\nDetonation complete. Evidence bundled at {result.evidence_dir}")
+    print(f"Sample SHA256: {result.sample_sha256}")
+    print("\nNEXT STEPS:")
+    print(f"  1. Revert victim-vm to '{detonate.CLEAN_SNAPSHOT_NAME}' now -- it's untrusted.")
+    print("  2. Review the evidence bundle and turn what you saw into a Sigma rule in detections/.")
     return 0
 
 

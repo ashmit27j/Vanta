@@ -80,11 +80,8 @@ def search_alerts(config: Config, agent_name: str, since: datetime, until: datet
     return alerts
 
 
-def check_agent_connected(config: Config, agent_name: str) -> bool:
-    """Best-effort liveness check: does the agent have at least one recent
-    alert/event indexed? A real agent-status API call is added once the
-    Wazuh manager is up (Prompt 2) -- this is deliberately conservative.
-    """
+def indexer_healthy(config: Config) -> bool:
+    """Cluster-level liveness for the indexer itself (not agent status)."""
     try:
         resp = requests.get(
             f"{config.wazuh_base_url}/_cluster/health",
@@ -94,4 +91,55 @@ def check_agent_connected(config: Config, agent_name: str) -> bool:
         )
         return resp.ok
     except requests.RequestException:
+        return False
+
+
+def _authenticate_manager_api(config: Config) -> str:
+    """Wazuh manager API (port 55000) uses JWT auth: Basic-auth once against
+    /security/user/authenticate to get a short-lived bearer token.
+    """
+    resp = requests.post(
+        f"{config.wazuh_api_base_url}/security/user/authenticate",
+        auth=(config.wazuh_user, config.wazuh_password),
+        verify=config.wazuh_verify_tls,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp.json()["data"]["token"]
+
+
+def get_agent_status(config: Config, agent_name: str) -> str | None:
+    """Real per-agent connection status ('active', 'disconnected',
+    'never_connected', ...) from the Wazuh manager API -- distinct from, and
+    more accurate than, indexer_healthy() above.
+    """
+    if not config.wazuh_api_base_url or not config.wazuh_user:
+        raise WazuhConnectionError(
+            "Wazuh manager API isn't configured -- set siem_vm_ip in tooling/config.yaml and "
+            "WAZUH_USER/WAZUH_PASSWORD in tooling/.env (see .env.example)."
+        )
+
+    try:
+        token = _authenticate_manager_api(config)
+        resp = requests.get(
+            f"{config.wazuh_api_base_url}/agents",
+            params={"name": agent_name},
+            headers={"Authorization": f"Bearer {token}"},
+            verify=config.wazuh_verify_tls,
+            timeout=10,
+        )
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise WazuhConnectionError(f"could not reach Wazuh manager API at {config.wazuh_api_base_url}: {exc}") from exc
+
+    items = resp.json().get("data", {}).get("affected_items", [])
+    if not items:
+        return None
+    return items[0].get("status")
+
+
+def check_agent_connected(config: Config, agent_name: str) -> bool:
+    try:
+        return get_agent_status(config, agent_name) == "active"
+    except WazuhConnectionError:
         return False

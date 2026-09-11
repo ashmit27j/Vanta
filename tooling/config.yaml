@@ -4,9 +4,13 @@
 # siem-vm's IP on VMnet10. Fill in after the VM build (docs/VM-BUILD-RUNBOOK.md).
 siem_vm_ip: "192.168.110.10"
 
-# Wazuh indexer API base URL. Leave unset to derive from siem_vm_ip as
-# https://<siem_vm_ip>:9200.
+# Wazuh indexer API base URL (alerts/archives). Leave unset to derive from
+# siem_vm_ip as https://<siem_vm_ip>:9200.
 # wazuh_base_url: "https://192.168.110.10:9200"
+
+# Wazuh manager API base URL (agent status, port 55000 by default). Leave
+# unset to derive from siem_vm_ip.
+# wazuh_api_base_url: "https://192.168.110.10:55000"
 
 # Wazuh dashboard/indexer uses a self-signed cert by default in this lab.
 wazuh_verify_tls: false
@@ -15,7 +19,28 @@ wazuh_verify_tls: false
 victim_agent_name: "victim-vm"
 
 # Optional: lets `purplelab run` execute the atomic over SSH instead of just
-# printing the command. Leave commented out until victim-vm exists and is
-# reachable -- `purplelab run` prints the manual command instead when unset.
+# printing the command, and is required for `purplelab containment-check` /
+# `purplelab detonate` (both need to run commands on victim-vm). Leave
+# commented out until victim-vm exists and is reachable.
 # victim_ssh_host: "192.168.110.20"
 # victim_ssh_user: "ubuntu"
+
+# Required for the containment check's kali-vm forwarding verification
+# (docs/CONTAINMENT-AND-SAFETY.md rule 8).
+# kali_ssh_host: "192.168.110.30"
+# kali_ssh_user: "kali"
+
+# Required for `purplelab detonate` to pull INetSim logs from siem-vm
+# (host is siem_vm_ip above).
+# siem_ssh_user: "ubuntu"
+
+# Path to victim-vm's .vmx file on this host, so `purplelab detonate` can
+# drive VMware's `vmrun` to revert the clean-baseline snapshot itself rather
+# than trusting that it was done by hand.
+# victim_vmx_path: "C:\\VMs\\victim-vm\\victim-vm.vmx"
+
+# What the containment check probes to confirm victim-vm has no real
+# egress. Any real, non-lab IP/domain works -- these are never actually
+# reached successfully if containment is intact.
+external_probe_ip: "1.1.1.1"
+external_probe_domain: "example.com"
