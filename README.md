@@ -1,5 +1,7 @@
 # Vanta
 
+[![CI](https://github.com/ashmit27j/Vanta/actions/workflows/ci.yml/badge.svg)](https://github.com/ashmit27j/Vanta/actions/workflows/ci.yml)
+
 **Vanta** is a contained, three-VM purple-team home lab: attack, defend, and
 detect, on hardware you own, fully isolated from the real internet.
 

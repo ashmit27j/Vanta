@@ -34,6 +34,21 @@ def build_parser() -> argparse.ArgumentParser:
     today = sub.add_parser("today", help="Show streak, recent entries, and what's next")
     today.set_defaults(func=commands.cmd_today)
 
+    sigma = sub.add_parser("sigma", help="Sigma detection pipeline")
+    sigma_sub = sigma.add_subparsers(dest="sigma_command", required=True)
+
+    sigma_convert = sigma_sub.add_parser("convert", help="Sigma YAML -> Lucene query (all rules, or one path)")
+    sigma_convert.add_argument("path", nargs="?", default=None)
+    sigma_convert.set_defaults(func=commands.cmd_sigma_convert)
+
+    sigma_deploy = sigma_sub.add_parser("deploy", help="Deploy rule(s) as OpenSearch Alerting monitors")
+    sigma_deploy.add_argument("path", nargs="?", default=None)
+    sigma_deploy.set_defaults(func=commands.cmd_sigma_deploy)
+
+    sigma_test = sigma_sub.add_parser("test", help="Detection test harness: run a technique, assert it fires")
+    sigma_test.add_argument("technique_id")
+    sigma_test.set_defaults(func=commands.cmd_sigma_test)
+
     return parser
 
 

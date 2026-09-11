@@ -1,0 +1,27 @@
+title: Cron Persistence via crontab Command
+id: 3b1e6a2a-9f3d-4a1a-9c7a-5e2d1f0a7b31
+status: experimental
+description: |
+    Detects use of the `crontab` command to create or modify a user's cron
+    jobs -- a common Linux persistence technique. Exercised via Atomic Red
+    Team T1053.003 on victim-vm.
+references:
+    - https://attack.mitre.org/techniques/T1053/003/
+author: Vanta lab
+date: 2026-09-12
+tags:
+    - attack.persistence
+    - attack.t1053.003
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection:
+        Image|endswith: '/crontab'
+        CommandLine|contains:
+            - '-e'
+            - '-l'
+    condition: selection
+falsepositives:
+    - Legitimate cron administration by a system administrator
+level: medium

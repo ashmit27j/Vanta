@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import subprocess
 from datetime import date, datetime, timezone
+from pathlib import Path
 
-from . import atomics, journal, state, wazuh
+import requests
+
+from . import atomics, journal, sigma_pipeline, state, wazuh
 from .config import load_config
 
 
@@ -162,3 +165,114 @@ def _prompt_yes_no(question: str, default: bool) -> bool:
     if not answer:
         return default
     return answer in ("y", "yes")
+
+
+def _rule_path_for_technique(repo_root: Path, technique_id: str) -> Path | None:
+    matches = list((repo_root / "detections").glob(f"*/{technique_id}.yml"))
+    return matches[0] if matches else None
+
+
+def cmd_sigma_convert(args) -> int:
+    config = load_config()
+    if args.path:
+        rule_path = Path(args.path)
+        try:
+            queries = sigma_pipeline.convert_rule(rule_path)
+        except sigma_pipeline.SigmaPipelineError as exc:
+            print(f"Invalid rule: {exc}")
+            return 1
+        print(f"{rule_path}:")
+        for q in queries:
+            print(f"  {q}")
+        return 0
+
+    detections_dir = config.repo_root / "detections"
+    rules = sigma_pipeline.find_rules(detections_dir)
+    if not rules:
+        print(f"No rules found under {detections_dir}.")
+        return 0
+
+    failed = False
+    for rule_path in rules:
+        try:
+            queries = sigma_pipeline.convert_rule(rule_path)
+        except sigma_pipeline.SigmaPipelineError as exc:
+            print(f"INVALID  {rule_path}: {exc}")
+            failed = True
+            continue
+        print(f"OK       {rule_path}")
+        for q in queries:
+            print(f"           {q}")
+    return 1 if failed else 0
+
+
+def cmd_sigma_deploy(args) -> int:
+    config = load_config()
+
+    if args.path:
+        rule_paths = [Path(args.path)]
+    else:
+        rule_paths = sigma_pipeline.find_rules(config.repo_root / "detections")
+
+    if not rule_paths:
+        print("No rules to deploy.")
+        return 0
+
+    failed = False
+    for rule_path in rule_paths:
+        technique_id = sigma_pipeline.technique_id_for(rule_path)
+        try:
+            monitor_id = sigma_pipeline.deploy_rule(config, rule_path)
+        except sigma_pipeline.SigmaPipelineError as exc:
+            print(f"INVALID  {rule_path}: {exc}")
+            failed = True
+            continue
+        except requests.RequestException as exc:
+            print(f"Could not deploy {rule_path} to {config.wazuh_base_url}: {exc}")
+            failed = True
+            continue
+        print(f"Deployed {technique_id} -> monitor {monitor_id} ({sigma_pipeline.monitor_name_for(technique_id)})")
+    return 1 if failed else 0
+
+
+def cmd_sigma_test(args) -> int:
+    """Detection test harness: revert reminder -> run the atomic -> assert
+    the matching Sigma-backed monitor produced a finding -> pass/fail.
+    """
+    config = load_config()
+    rule_path = _rule_path_for_technique(config.repo_root, args.technique_id)
+    if rule_path is None:
+        print(f"No Sigma rule found for {args.technique_id} under detections/*/{args.technique_id}.yml")
+        return 1
+
+    print(f"Deploying {rule_path} before testing...")
+    try:
+        monitor_id = sigma_pipeline.deploy_rule(config, rule_path)
+    except (sigma_pipeline.SigmaPipelineError, requests.RequestException) as exc:
+        print(f"Could not deploy rule: {exc}")
+        return 1
+
+    run_result = cmd_run(args)
+    if run_result != 0:
+        return run_result
+
+    input("\nPress Enter once the atomic/attack has finished executing (allow a few minutes for the monitor "
+          f"schedule to catch up -- it runs every {sigma_pipeline.MONITOR_SCHEDULE_MINUTES} minutes)... ")
+
+    run_state = state.get_run(config.repo_root, args.technique_id)
+    since = datetime.fromisoformat(run_state.started_at)
+    until = datetime.now(timezone.utc)
+
+    try:
+        findings = sigma_pipeline.search_findings(config, monitor_id, since=since, until=until)
+    except requests.RequestException as exc:
+        print(f"Could not query findings: {exc}")
+        return 1
+
+    if findings:
+        print(f"PASS -- {len(findings)} finding(s) for {args.technique_id} via {monitor_id}.")
+        return 0
+
+    print(f"FAIL -- no findings for {args.technique_id}. The monitor didn't fire (or hasn't run yet -- "
+          "it's on a fixed schedule, not real-time).")
+    return 1

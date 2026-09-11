@@ -14,12 +14,12 @@ dependencies = [
     "requests>=2.31",
     "pyyaml>=6.0",
     "python-dotenv>=1.0",
+    "pysigma>=1.5",
+    "pysigma-backend-elasticsearch>=2.1",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
-# pySigma / sigma-cli land in Prompt 6 as an extra ("sigma") once the
-# detection pipeline is built.
 
 [project.scripts]
 purplelab = "purplelab.cli:main"

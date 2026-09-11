@@ -13,3 +13,9 @@ dashboard), and INetSim (fake-internet sinkhole for detonation containment).
 
 Run this inside `siem-vm`, after cloning the repo there (see
 `docs/VM-BUILD-RUNBOOK.md`), not on the Windows host.
+
+**When Prompt 2 gets implemented, enable archives** (`logall_json: yes` in the
+Wazuh manager's `ossec.conf`). The Sigma pipeline (`detections/`,
+`tooling/purplelab/sigma_pipeline.py`, built in Prompt 6) queries
+`wazuh-archives-*` so new detections have all events to search, not just ones
+Wazuh's own built-in rules already alerted on.
