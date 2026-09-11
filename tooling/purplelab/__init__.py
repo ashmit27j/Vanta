@@ -1,4 +1,4 @@
-"""purplelab: daily-loop CLI for the Purple Lab.
+"""purplelab: daily-loop CLI for Vanta.
 
 See docs/prompt-chain.md (Prompt 5 onward) for the command surface this
 package will grow: pick, run, check, log, today, sigma convert/deploy,

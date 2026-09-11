@@ -22,9 +22,12 @@ followed every single time, not most of the time.
    Run the containment check (`purplelab containment-check`, built in Prompt 3)
    immediately before opening or executing any sample or atomic that could reach
    out to a network. It must confirm:
-   - No route to a real external IP/domain exists.
+   - No route to a real external IP/domain exists **from victim-vm**.
    - DNS resolves to the INetSim sinkhole on siem-vm, not a real resolver.
    - The Wazuh agent is connected (so whatever happens is actually observed).
+   - kali-vm's IP forwarding is off and no bridging rule exists (rule 8) — this
+     is the one path in the lab with real internet access, so it's the one the
+     check verifies explicitly rather than assumes.
    If any of these checks fail, **do not proceed.** Fix the network first.
 
 4. **Fail closed, always.**
@@ -54,6 +57,16 @@ followed every single time, not most of the time.
    leak to whatever you detonate there. Use a throwaway local user/password
    created during Ubuntu install and nothing else.
 
+8. **kali-vm never forwards traffic between its two adapters.**
+   kali-vm is the one VM with a real-internet-facing adapter (NAT, for tool
+   updates). That's only safe as long as it never routes traffic between that
+   adapter and its VMnet10 adapter — otherwise it becomes a bridge from the
+   isolated segment straight to the real internet. Verify, don't assume:
+   `sysctl net.ipv4.ip_forward` and `net.ipv6.conf.all.forwarding` must both read
+   `0`, and `iptables -t nat -L -n -v` must show no masquerade/forward rule
+   between the two interfaces. Check this after any change to kali-vm's network
+   config, not just once at build time (see `VM-BUILD-RUNBOOK.md` step 4).
+
 ## Where samples come from
 
 When you're ready to work with real samples (Prompt 8), pull them from sources
@@ -76,8 +89,9 @@ Handling rules for anything pulled from either source:
 
 ## What the detonation workflow enforces in code
 
-Prompt 8 builds `purplelab detonate` to encode rules 1–4 above as actual gates,
-not just documentation: it will refuse to proceed if victim-vm isn't confirmed
-reverted, if the containment check fails, or if any step in the sequence can't be
-verified. Treat that command as the single sanctioned way to run a real sample in
-this lab — don't detonate samples by hand outside of it once it exists.
+Prompt 8 builds `purplelab detonate` to encode rules 1–4 and 8 above as actual
+gates, not just documentation: it will refuse to proceed if victim-vm isn't
+confirmed reverted, if the containment check (including the kali-vm forwarding
+check) fails, or if any step in the sequence can't be verified. Treat that
+command as the single sanctioned way to run a real sample in this lab — don't
+detonate samples by hand outside of it once it exists.

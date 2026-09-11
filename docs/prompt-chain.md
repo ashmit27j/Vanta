@@ -1,9 +1,19 @@
-# Purple Lab — Build Guide & Claude Code Prompt Chain
+# Vanta — Build Guide & Claude Code Prompt Chain
 
-A contained, two-VM purple-team lab you attack and defend on your own machine.
-You run one Atomic Red Team technique, check whether your monitoring caught it,
-write or fix a detection, and confirm it fires — every day. Real malware samples
-are in scope, so the network is fully isolated.
+A contained, three-VM purple-team lab you attack and defend on your own machine.
+You run one Atomic Red Team technique (or a hands-on attack from a dedicated
+Kali box), check whether your monitoring caught it, write or fix a detection,
+and confirm it fires — every day. Real malware samples are in scope, so the
+network is fully isolated except for one narrow, verified exception on the
+attacker box.
+
+> **Note:** this guide originally shipped as a two-VM design (siem-vm + INetSim
+> doubling as the attack source via locally-run atomics only). It was revised to
+> three VMs — adding a dedicated **kali-vm** attacker box — so the lab can also
+> exercise attacks that genuinely originate from a separate host: network
+> scanning, remote exploitation, C2 beaconing, lateral movement. Prompts 0–3
+> below predate that change and are left as originally run; **Prompt 4B** adds
+> kali-vm provisioning.
 
 ---
 
@@ -11,7 +21,8 @@ are in scope, so the network is fully isolated.
 
 - **Host:** Windows + VMware Workstation, **32GB RAM**
 - **Victim VM:** **Ubuntu Desktop** (attacked + detonated on; snapshot every run)
-- **SIEM VM:** Ubuntu Server running Wazuh **+ INetSim fake-internet on the same box (no 3rd VM)**
+- **SIEM VM:** Ubuntu Server running Wazuh **+ INetSim fake-internet on the same box**
+- **Kali VM:** Kali Linux, the only attacker box, dual-homed (VMnet10 + NAT for tool updates only)
 - **Tooling:** Python
 - **Repo:** public GitHub, portfolio-grade from day one
 - **Scope:** full containment now so real samples are safe when you're ready
@@ -20,9 +31,10 @@ are in scope, so the network is fully isolated.
 
 | VM | vCPU | RAM | Disk | Notes |
 |---|---|---|---|---|
-| siem-vm (Ubuntu Server) | 4 | **12 GB** | 60 GB | Wazuh indexer is a hungry JVM; give it room |
-| victim-vm (Ubuntu Desktop) | 4 | **8 GB** | 50 GB | Desktop GUI + detonation headroom |
-| Host (Windows) | — | ~12 GB left | — | Comfortable; both VMs run at once |
+| siem-vm (Ubuntu Server) | 4 | **10 GB** | 60 GB | Wazuh indexer is a hungry JVM; give it room |
+| victim-vm (Ubuntu Desktop) | 4 | **6 GB** | 50 GB | Desktop GUI + detonation headroom |
+| kali-vm (Kali Linux) | 2 | **4 GB** | 40 GB | Mostly CLI attack tooling, doesn't need much |
+| Host (Windows) | — | ~12 GB left | — | Comfortable; all three VMs run at once |
 
 ---
 
@@ -33,22 +45,30 @@ WINDOWS HOST — VMware Workstation, git, the GitHub repo, Claude Code runs here
    │
    └─ VMnet10  (host-only, ISOLATED: no NAT, no route to internet or your LAN)
         │
-        ├─ siem-vm  (Ubuntu Server)          STABLE — your home base
+        ├─ siem-vm  (Ubuntu Server)          STABLE — pure defense, never attacks
         │    • Docker + Wazuh (indexer / manager / dashboard)
         │    • INetSim container = fake internet (DNS + HTTP sinkhole)
         │    • holds all logs, detection rules, and history
         │
-        └─ victim-vm (Ubuntu)                DISPOSABLE — snapshot before every run
-             • Wazuh agent  → ships logs to siem-vm
-             • auditd + Sysmon-for-Linux (telemetry)
-             • Invoke-AtomicRedTeam (attacks) + sample detonation area
-             • its ONLY network path is to the fake internet on siem-vm
+        ├─ victim-vm (Ubuntu Desktop)        DISPOSABLE — snapshot before every run
+        │    • Wazuh agent  → ships logs to siem-vm
+        │    • auditd + Sysmon-for-Linux (telemetry)
+        │    • Invoke-AtomicRedTeam (local atomics) + sample detonation area
+        │    • its ONLY network path is VMnet10 (siem-vm + kali-vm)
+        │
+        └─ kali-vm (Kali Linux)              ATTACKER — the only offense-capable box
+             • Metasploit / Nmap / C2 tooling, attacks victim-vm over VMnet10
+             • second adapter (NAT) for tool updates only — IP forwarding
+               disabled, so it can never bridge VMnet10 to the real internet
 ```
 
-**Why two VMs:** the machine collecting evidence should not be the machine getting
-compromised. A sample that trashes the victim never costs you your accumulated
-detection work. **Why the repo lives on the host + GitHub:** it outlives every
-victim-VM revert.
+**Why three VMs:** the machine collecting evidence should not be the machine
+getting compromised, and the machine doing the attacking shouldn't hold
+defensive telemetry either. A sample that trashes the victim never costs you
+your accumulated detection work, and keeping attack tooling off siem-vm and
+victim-vm means neither one needs anything offensive installed on it.
+**Why the repo lives on the host + GitHub:** it outlives every VM revert or
+rebuild.
 
 ---
 
@@ -88,25 +108,26 @@ the Sigma pipeline, CI, the coverage dashboard, and the detonation *workflow cod
 None of them need a VM to exist. You can safely queue these and step away.
 
 **CANNOT run unattended (need the VMs to exist + interactive verification):**
-Prompts **2, 3, 4** run *inside* the siem-vm and victim-vm and check things like
-"did the Wazuh dashboard load", "does the containment check fail closed",
-"did the agent connect". The VMs don't exist until you build them by hand (the
-`[MANUAL]` step after Prompt 1), and these steps need your eyes on the result.
-**Do not** let an unattended agent decide containment is fine — you verify that one
-yourself, every time.
+Prompts **2, 3, 4, 4B** run *inside* siem-vm, victim-vm, and kali-vm and check
+things like "did the Wazuh dashboard load", "does the containment check fail
+closed", "did the agent connect", "is kali-vm's IP forwarding actually off". The
+VMs don't exist until you build them by hand (the `[MANUAL]` step after Prompt 1),
+and these steps need your eyes on the result. **Do not** let an unattended agent
+decide containment is fine — you verify that one yourself, every time.
 
 ### So the sane hand-off plan
 
 1. **You, present:** run Prompts 0 and 1. Read the VM build runbook it produces.
-2. **You, present:** do the `[MANUAL]` VMware step — build VMnet10 + both VMs,
-   clone the repo inside each, take base snapshots. (~1 hour, one time.)
+2. **You, present:** do the `[MANUAL]` VMware step — build VMnet10 + all three
+   VMs, clone the repo inside each, take base snapshots. (~1–1.5 hours, one time.)
 3. **Unattended is fine here:** while you're doing the VM build, or overnight, let
    Claude Code run Prompts **5–9** to build all the tooling against the repo. Queue
    them with a note like: *"Do prompts 5 through 9 from docs/prompt-chain in order,
    committing after each. Skip anything that requires a running VM and leave me a
    TODO note instead."*
-4. **You, present, later:** run Prompts 2, 3, 4 inside the VMs and verify each
-   (dashboard loads, containment fails closed, agent connects).
+4. **You, present, later:** run Prompts 2, 3, 4, 4B inside the VMs and verify each
+   (dashboard loads, containment fails closed, agent connects, kali-vm forwarding
+   is off).
 
 That way the boring code-authoring happens while you're away, and the safety-
 critical VM steps stay under your eye.
@@ -159,31 +180,36 @@ CLAUDE.md that documents our conventions (Python for tooling, Docker Compose for
 Wazuh, bash for provisioning, Sigma for detections, everything idempotent):
 
   /docs        ARCHITECTURE.md, VM-BUILD-RUNBOOK.md, CONTAINMENT-AND-SAFETY.md
-  /provision   siem/ and victim/ setup scripts (stubs for now)
+  /provision   siem/, victim/, and kali/ setup scripts (stubs for now)
   /tooling     the Python "purplelab" CLI package (stub)
   /detections  Sigma rules live here (empty + a README)
   /journal     daily-loop log lives here (empty + a README)
   /samples     .gitignored — real malware never gets committed
 
-Write ARCHITECTURE.md fully: the two-VM design above (siem-vm = Ubuntu Server with
-Wazuh + INetSim; victim-vm = Ubuntu with Wazuh agent, auditd, Sysmon-for-Linux,
-Invoke-AtomicRedTeam), the isolated VMnet10 network with no NAT, and why the repo
-lives on the host.
+Write ARCHITECTURE.md fully: the three-VM design above (siem-vm = Ubuntu Server
+with Wazuh + INetSim; victim-vm = Ubuntu with Wazuh agent, auditd,
+Sysmon-for-Linux, Invoke-AtomicRedTeam; kali-vm = the only attacker box, dual
+NIC), the isolated VMnet10 network with no NAT (except kali-vm's second, NAT'd
+adapter for tool updates only, with IP forwarding verified off), and why the
+repo lives on the host.
 
 Write VM-BUILD-RUNBOOK.md as an exact step-by-step for VMware Workstation on
 Windows: creating VMnet10 as a host-only network with NAT disabled in the Virtual
-Network Editor; creating both Ubuntu VMs (specs, ISO, adapter settings so the
-victim is ONLY on VMnet10); enabling nested settings if needed; and taking a clean
-base snapshot of each. Be specific about which adapter each VM gets.
+Network Editor; creating all three VMs (specs, ISO, adapter settings so victim-vm
+is ONLY on VMnet10, and kali-vm gets a second NAT adapter for tool updates with
+IP forwarding verified off); enabling nested settings if needed; and taking a
+clean base snapshot of each. Be specific about which adapter(s) each VM gets.
 
 Write CONTAINMENT-AND-SAFETY.md: the rules for handling real samples (snapshot
 before, revert after, verify no egress, never mount host shares on the victim
-during detonation, never put credentials on the victim).
+during detonation, never put credentials on the victim, and never let kali-vm
+bridge its NAT adapter to VMnet10).
 ```
 
 **[MANUAL]** Follow `VM-BUILD-RUNBOOK.md`: install VMware if needed, create VMnet10,
-build **siem-vm** and **victim-vm** from an Ubuntu ISO, set their network adapters,
-`git clone` your repo inside each VM, and take a **clean base snapshot** of each.
+build **siem-vm**, **victim-vm**, and **kali-vm**, set their network adapters
+(kali-vm gets two, verify IP forwarding is off), `git clone` your repo inside
+each VM, and take a **clean base snapshot** of each.
 
 ---
 
@@ -219,9 +245,12 @@ the sinkhole and nothing leaves.
 Then write /tooling scripts + a `purplelab containment-check` command that I run
 FROM the victim-vm before any detonation: it must actively verify there is NO real
 internet egress (fail if it can reach an external IP/domain), confirm DNS resolves
-to the sinkhole, and confirm the Wazuh agent is connected. It should exit non-zero
-and print a loud warning if containment is not intact. Make this the mandatory
-pre-flight gate.
+to the sinkhole, confirm the Wazuh agent is connected, and (via SSH to kali-vm, or
+a small status endpoint there) confirm kali-vm's IP forwarding is off and no
+bridging NAT rule exists — kali-vm's NAT adapter is the one real-internet path in
+the lab, so this check verifies it rather than trusting it stayed off. It should
+exit non-zero and print a loud warning if containment is not intact. Make this
+the mandatory pre-flight gate.
 ```
 
 **[MANUAL]** Bring up INetSim, run the containment check from victim-vm — it must
@@ -257,6 +286,39 @@ snapshot you revert to before every run.
 
 ---
 
+### Prompt 4B — Kali attacker box provisioning  **[run inside kali-vm]**
+
+```
+Write /provision/kali/install.sh: an idempotent bash script for kali-vm. It
+should:
+  1. Update apt and confirm core attack tooling is present (Metasploit
+     Framework, Nmap, and whatever else a stock Kali install already ships
+     with) — this script is about verifying/updating what's there and
+     documenting it, not building a custom toolset from scratch.
+  2. Verify and enforce the safety-critical network posture: confirm exactly
+     two interfaces (one on VMnet10, one NAT), confirm IP forwarding is
+     disabled (net.ipv4.ip_forward and net.ipv6.conf.all.forwarding both 0,
+     persisted via /etc/sysctl.d/ so it survives reboot), and confirm no
+     NAT/masquerade rule bridges the two interfaces (iptables -t nat -L -n -v).
+     Fail loudly and refuse to continue if any of this doesn't hold.
+  3. `git clone`/pull this repo if not already present, and print the
+     siem-vm and victim-vm IPs it expects (from a small config file, not
+     hardcoded).
+Add /provision/kali/README.md explaining how to run it inside kali-vm and how it
+relates to the containment check that victim-vm runs before detonation. Add a
+Makefile target `make kali-verify` that re-runs just the network posture checks
+from step 2, so I can re-verify kali-vm's isolation any time without
+re-provisioning tools.
+```
+
+**[MANUAL]** In kali-vm: `git pull`, run `provision/kali/install.sh`, then
+`make kali-verify`. Confirm the output shows IP forwarding off and no bridging
+NAT rule. From kali-vm, confirm you can reach victim-vm and siem-vm over VMnet10
+**and** the real internet over the NAT adapter. Snapshot kali-vm as
+**"tooling-ready"**.
+
+---
+
 ### Prompt 5 — The daily-loop CLI (`purplelab`)
 
 ```
@@ -265,8 +327,11 @@ installable with pipx). Commands:
 
   purplelab pick [--tactic X]   suggest an ATT&CK technique I haven't covered yet,
                                 using my journal + a list of available Linux atomics
-  purplelab run <T-id>          remind me to snapshot, run the matching Atomic Red
-                                Team test on the victim via pwsh, and record start time
+  purplelab run <T-id>          remind me to snapshot victim-vm, then either run the
+                                matching Atomic Red Team test locally via pwsh, or
+                                (for techniques better represented as a remote
+                                attack) print the staged kali-vm command to run by
+                                hand, and record start time either way
   purplelab check <T-id>        query the Wazuh API (indexer) for events/alerts in
                                 the time window since `run`, and report: did anything
                                 fire? what raw telemetry exists? time-to-detect?
@@ -370,12 +435,13 @@ Fifteen minutes. Every entry is one ATT&CK technique you now understand from bot
 | Step | Where | What |
 |---|---|---|
 | Prompt 0–1 | Host (Claude Code) | Repo, docs, VM build runbook |
-| **[MANUAL]** | VMware | Build VMnet10 + both VMs, base snapshots, clone repo in each |
+| **[MANUAL]** | VMware | Build VMnet10 + all three VMs, base snapshots, clone repo in each |
 | Prompt 2 | Claude Code → run in siem-vm | Wazuh up |
-| Prompt 3 | Claude Code → run in both | Fake-internet + containment gate |
+| Prompt 3 | Claude Code → run in siem-vm + victim-vm | Fake-internet + containment gate |
 | Prompt 4 | Claude Code → run in victim-vm | Telemetry + attack tooling, clean-baseline snapshot |
+| Prompt 4B | Claude Code → run in kali-vm | Attack tooling + verified network isolation, tooling-ready snapshot |
 | Prompt 5–7 | Host (Claude Code) | CLI, Sigma pipeline + CI, coverage dashboard |
 | Prompt 8 | Claude Code | Safety-gated real-sample workflow |
 | Prompt 9 | Claude Code | One-command lab + go public |
 
-Build the lab first (Prompts 0–4), then the tooling grows around a working loop.
+Build the lab first (Prompts 0–4B), then the tooling grows around a working loop.
