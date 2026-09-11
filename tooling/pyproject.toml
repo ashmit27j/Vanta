@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "purplelab"
+version = "0.0.1"
+description = "Daily-loop CLI for the Purple Lab: pick/run/check/log ATT&CK techniques, Sigma pipeline, coverage, safety-gated detonation."
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "MIT" }
+
+# Real dependencies (click/typer, requests, pyyaml, pySigma, etc.) land in
+# Prompts 5-8 as each command is implemented.
+dependencies = []
+
+[project.scripts]
+purplelab = "purplelab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["purplelab*"]

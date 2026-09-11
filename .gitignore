@@ -28,8 +28,9 @@ build/
 docker-compose.override.yml
 
 # --- Malware samples: never commit real samples ---
-samples/
+samples/*
 !samples/.gitkeep
+!samples/README.md
 
 # --- Journal artifacts that shouldn't be tracked as noise (evidence bundles) ---
 journal/evidence/
