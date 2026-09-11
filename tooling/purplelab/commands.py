@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-from . import atomics, journal, sigma_pipeline, state, wazuh
+from . import atomics, coverage, journal, sigma_pipeline, state, wazuh
 from .config import load_config
 
 
@@ -156,6 +156,16 @@ def cmd_today(args) -> int:
         print(f"Run `purplelab run {next_technique.id}` to start.")
     else:
         print("\nAll cataloged techniques covered -- extend tooling/purplelab/data/techniques.json.")
+    return 0
+
+
+def cmd_coverage(args) -> int:
+    config = load_config()
+    layer_path, report_path = coverage.write_coverage(config.repo_root)
+    print(f"Wrote {layer_path}")
+    print(f"Wrote {report_path}")
+    print("\nLoad the layer at https://mitre-attack.github.io/attack-navigator/ -> "
+          "Open Existing Layer -> Upload from local -> select the JSON file above.")
     return 0
 
 

@@ -49,6 +49,9 @@ def build_parser() -> argparse.ArgumentParser:
     sigma_test.add_argument("technique_id")
     sigma_test.set_defaults(func=commands.cmd_sigma_test)
 
+    coverage = sub.add_parser("coverage", help="Generate the ATT&CK Navigator layer + HTML coverage report")
+    coverage.set_defaults(func=commands.cmd_coverage)
+
     return parser
 
 

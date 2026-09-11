@@ -15,7 +15,11 @@ real-sample detonation behind containment checks.
   detection test harness). `convert` works fully offline (covered by
   `tests/test_sigma_pipeline.py`, and run by CI on every push); `deploy`/`test`
   need a live Wazuh indexer.
-- **Prompt 7** — `coverage`
+- **Prompt 7 (done)** — `coverage`: writes `coverage/navigator-layer.json`
+  (ATT&CK Navigator layer) and `coverage/report.html` (self-contained, works
+  offline, light/dark aware) from `detections/` + `journal/`. Both files are
+  generated, gitignored, and regenerated on demand -- covered by
+  `tests/test_coverage.py`.
 - **Prompt 8** — `containment-check`, `detonate`
 
 ## Install

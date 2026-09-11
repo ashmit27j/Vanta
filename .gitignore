@@ -23,6 +23,9 @@ htmlcov/
 dist/
 build/
 
+# --- Generated reports (regenerate with `purplelab coverage`) ---
+coverage/
+
 # --- Docker ---
 *.log
 docker-compose.override.yml
