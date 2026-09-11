@@ -60,6 +60,21 @@ Workstation build steps, and
 [`docs/CONTAINMENT-AND-SAFETY.md`](docs/CONTAINMENT-AND-SAFETY.md) for the rules
 that keep it safe to detonate real samples.
 
+## Quickstart
+
+1. Clone this repo on your Windows host (VMware Workstation, 32GB+ RAM
+   recommended) and install the CLI:
+   ```
+   pip install -e tooling/[dev]
+   ```
+2. Build the lab: follow [`docs/VM-BUILD-RUNBOOK.md`](docs/VM-BUILD-RUNBOOK.md)
+   to stand up the isolated `VMnet10` network and all three VMs, then work
+   through the rest of [`docs/prompt-chain.md`](docs/prompt-chain.md) to
+   provision Wazuh, the sinkhole, and the attack/target tooling.
+3. Fill in `tooling/config.yaml` (VM IPs, SSH users) and `tooling/.env`
+   (Wazuh credentials — copy from `tooling/.env.example`, never commit it).
+4. Run `purplelab today` and start the daily loop below.
+
 ## The daily loop
 
 1. `purplelab today` — see your streak and what's next.
@@ -72,6 +87,19 @@ that keep it safe to detonate real samples.
 
 Fifteen minutes. Every entry is one ATT&CK technique understood from both sides.
 
+## Coverage report
+
+`purplelab coverage` (or `make coverage`) generates
+`coverage/navigator-layer.json` — load it at the
+[ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) via
+*Open Existing Layer → Upload from local* to see technique coverage on the
+real matrix — and `coverage/report.html`, a self-contained, light/dark-aware
+dashboard: coverage % by tactic, streak, a time-to-detect trend, and what's
+left to cover.
+
+_(Screenshot placeholder — once the lab has real data, replace this with a
+screenshot of `coverage/report.html`.)_
+
 ## Repo layout
 
 | Path | Purpose |
@@ -79,16 +107,37 @@ Fifteen minutes. Every entry is one ATT&CK technique understood from both sides.
 | `docs/` | Architecture, VM build runbook, safety rules, the full build prompt chain |
 | `provision/siem/` | Stand up Wazuh + INetSim on siem-vm |
 | `provision/victim/` | Enroll the Wazuh agent, auditd, Sysmon, Atomic Red Team on victim-vm |
-| `tooling/` | The `purplelab` Python CLI — the daily loop, containment checks, Sigma pipeline, coverage |
+| `provision/kali/` | Verify/update attack tooling and network isolation on kali-vm |
+| `tooling/` | The `purplelab` Python CLI — the daily loop, Sigma pipeline, coverage, containment checks, detonation |
 | `detections/` | Sigma rules, one file per ATT&CK technique |
 | `journal/` | Daily-loop history: what ran, what fired, time-to-detect |
 | `samples/` | Real malware samples for detonation — gitignored, never committed |
 
 ## Status
 
-Early build-out, following the prompt chain in
-[`docs/prompt-chain.md`](docs/prompt-chain.md). The lab isn't operational yet —
-docs and scaffolding exist; VM provisioning and the CLI are in progress.
+The `purplelab` CLI is fully built (pick/run/check/log/today, the Sigma
+pipeline, coverage reports, containment-check, and the safety-gated
+detonation workflow), with 43 passing tests covering everything that doesn't
+need live infrastructure. **The VMs themselves don't exist yet** — that's the
+next step, following [`docs/VM-BUILD-RUNBOOK.md`](docs/VM-BUILD-RUNBOOK.md)
+and the rest of [`docs/prompt-chain.md`](docs/prompt-chain.md) (Prompts 2, 3,
+4, 4B). Everything that talks to a real VM (`run`/`check` execution,
+`containment-check`, `deploy`/`sigma test`, `detonate`) is written and tested
+against injected fakes, but unverified against real Wazuh/VMware until then.
+
+## Roadmap
+
+- **CALDERA automation** — orchestrate multi-technique campaigns instead of
+  one atomic at a time.
+- **Windows victim VM** — a second target alongside victim-vm, for
+  Windows-native telemetry (ETW, native Sysmon) and technique coverage.
+- **Morning auto-run** — pick and run a random uncovered technique each
+  morning automatically, diff the resulting alerts against the prior day, and
+  surface a digest instead of waiting for a manual `purplelab pick`.
+- **Grow kali-vm's tooling** — a lightweight C2 framework (e.g. Sliver) for
+  realistic multi-stage exercises beyond single exploits/scans.
+- **Expand the technique catalog** — `tooling/purplelab/data/techniques.json`
+  is a curated ~26 techniques, not the full ATT&CK matrix.
 
 ## Safety
 
