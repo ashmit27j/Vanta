@@ -1,0 +1,71 @@
+# Vanta victim-vm audit rules.
+#
+# Hand-assembled for this lab's technique catalog (tooling/purplelab/data/
+# techniques.json) rather than adopted wholesale from a generic hardening
+# baseline (e.g. the CIS benchmark's audit rules, which this draws on but
+# trims/extends) -- every watch below exists because it's plausible telemetry
+# for at least one cataloged technique. auditd's -w flag needs an existing,
+# exact path (no globbing), so a few of these watches will need adjusting to
+# match actual paths on this box once it's live -- verify with
+# `sudo auditctl -l` after `augenrules --load`.
+#
+# Installed to /etc/audit/rules.d/vanta.rules by install.sh, then loaded via
+# `augenrules --load` (NOT auditctl directly -- augenrules is what persists
+# rules across reboots on Ubuntu's auditd).
+
+## Buffer size -- default is often too small for a busy exec-heavy lab box
+-b 8192
+
+## Failure mode: 1 = log to syslog/journal (not 2 = panic; this is a lab, not prod)
+-f 1
+
+## --- Execution (T1059.004 Unix Shell, T1204.002 Malicious File) ---
+-a always,exit -F arch=b64 -S execve -k exec
+-a always,exit -F arch=b32 -S execve -k exec
+
+## --- Persistence: cron (T1053.003) ---
+-w /etc/crontab -p wa -k cron
+-w /etc/cron.d/ -p wa -k cron
+-w /etc/cron.daily/ -p wa -k cron
+-w /etc/cron.hourly/ -p wa -k cron
+-w /etc/cron.weekly/ -p wa -k cron
+-w /etc/cron.monthly/ -p wa -k cron
+-w /var/spool/cron/crontabs/ -p wa -k cron
+
+## --- Persistence: systemd services (T1543.002) ---
+-w /etc/systemd/system/ -p wa -k systemd_persistence
+-w /usr/lib/systemd/system/ -p wa -k systemd_persistence
+-w /lib/systemd/system/ -p wa -k systemd_persistence
+
+## --- Persistence: local accounts (T1136.001) / credential access (T1003.008) ---
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+
+## --- Privilege escalation: sudo, setuid/setgid (T1548.001, T1548.003) ---
+-w /etc/sudoers -p wa -k privesc
+-w /etc/sudoers.d/ -p wa -k privesc
+-a always,exit -F arch=b64 -S chmod,fchmod,fchmodat -F auid>=1000 -F auid!=4294967295 -k perm_mod
+-a always,exit -F arch=b64 -S chown,fchown,fchownat,lchown -F auid>=1000 -F auid!=4294967295 -k perm_mod
+
+## --- Defense evasion: log/audit tampering (T1070.002, T1070.003) ---
+-w /var/log/ -p wa -k log_tamper
+-w /var/log/audit/ -p wa -k audit_log_tamper
+-w /root/.bash_history -p wa -k history_tamper
+-w /home/ -p wa -k history_tamper
+
+## --- Credential access: files (T1552.001) ---
+-w /etc/ssh/ -p wa -k ssh_config
+-w /root/.ssh/ -p wa -k ssh_keys
+
+## --- Discovery / lateral movement visibility (T1046, T1021.004) ---
+## Network syscalls are noisy -- kept narrow (socket + connect only, not every
+## send/recv) to keep this usable on a lab box rather than drowning the
+## indexer. Revisit if it's too quiet OR too loud once real data exists.
+-a always,exit -F arch=b64 -S socket -k network_socket
+-a always,exit -F arch=b64 -S connect -k network_connect
+
+## Config immutability (-e 2) is intentionally NOT enabled here -- it would
+## require a reboot to change rules, which fights the "iterate on detections
+## daily" workflow this lab is built around. Reconsider for a hardened target.

@@ -1,0 +1,45 @@
+<!--
+  Vanta victim-vm Sysmon-for-Linux config.
+
+  CAVEAT: Sysmon-for-Linux (github.com/Sysinternals/SysmonForLinux) mirrors
+  Windows Sysmon's schema and event model, but supports a smaller subset of
+  event types (process create/terminate, file create, and network connect
+  are the well-established ones; check `sysmon -c` output on victim-vm for
+  exactly what this installed version supports, and extend this file once
+  you can see it). schemaversion below is a placeholder, match it to what
+  `sysmon -c` reports once installed.
+
+  This is deliberately a "log everything" baseline (onmatch="exclude" with
+  no conditions = nothing excluded = everything logged) rather than a tuned
+  allowlist, tune it down once you've seen real event volume. The field
+  names here (Image, CommandLine, ParentImage, User, ...) are exactly what
+  tooling/purplelab/sigma_pipeline.py's FIELD_MAPPING assumes Wazuh decodes
+  these events into (under data.win.eventdata.*); if you change this
+  config's event structure, check that mapping still makes sense.
+-->
+<Sysmon schemaversion="4.82">
+  <EventFiltering>
+    <RuleGroup name="" groupRelation="or">
+      <ProcessCreate onmatch="exclude">
+        <!-- log all process creation; add <Image condition="is">/noisy/path</Image> excludes here if it gets too loud -->
+      </ProcessCreate>
+    </RuleGroup>
+
+    <RuleGroup name="" groupRelation="or">
+      <ProcessTerminate onmatch="exclude">
+      </ProcessTerminate>
+    </RuleGroup>
+
+    <RuleGroup name="" groupRelation="or">
+      <FileCreate onmatch="exclude">
+        <!-- file creation is very noisy on a general-purpose desktop; scope this down once live,
+             e.g. exclude /home/*/.cache, /tmp/systemd-private-*, browser profile dirs -->
+      </FileCreate>
+    </RuleGroup>
+
+    <RuleGroup name="" groupRelation="or">
+      <NetworkConnect onmatch="exclude">
+      </NetworkConnect>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>
