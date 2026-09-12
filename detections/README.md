@@ -41,8 +41,14 @@ Two things to verify once siem-vm is actually live (see
    nothing to query for activity Wazuh's own rules haven't already alerted
    on, which defeats the point of writing a new detection.
 
-## Seed rule
+## Rules
 
-`persistence/T1053.003.yml` — cron persistence via the `crontab` command,
-working end to end through `sigma convert` (verified locally; `deploy`/`test`
-need live siem-vm).
+Four rules so far, all verified end to end through `sigma convert`
+(`deploy`/`test` need live siem-vm):
+
+| Rule | Technique | Tactic |
+|---|---|---|
+| `persistence/T1053.003.yml` | Cron persistence via the `crontab` command | persistence |
+| `defense-evasion/T1070.003.yml` | Bash history cleared or disabled | defense-evasion |
+| `privilege-escalation/T1548.003.yml` | Direct edit of `/etc/sudoers`, bypassing `visudo` | privilege-escalation |
+| `credential-access/T1003.008.yml` | Read access to `/etc/shadow` via common utilities | credential-access |

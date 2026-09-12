@@ -118,12 +118,20 @@ screenshot of `coverage/report.html`.)_
 The `purplelab` CLI is fully built (pick/run/check/log/today, the Sigma
 pipeline, coverage reports, containment-check, and the safety-gated
 detonation workflow), with 43 passing tests covering everything that doesn't
-need live infrastructure. **The VMs themselves don't exist yet** — that's the
-next step, following [`docs/VM-BUILD-RUNBOOK.md`](docs/VM-BUILD-RUNBOOK.md)
-and the rest of [`docs/prompt-chain.md`](docs/prompt-chain.md) (Prompts 2, 3,
-4, 4B). Everything that talks to a real VM (`run`/`check` execution,
-`containment-check`, `deploy`/`sigma test`, `detonate`) is written and tested
-against injected fakes, but unverified against real Wazuh/VMware until then.
+need live infrastructure. Provisioning scripts for all three VMs are written
+too (`provision/siem/`, `provision/victim/`, `provision/kali/`) — syntax
+-checked, and each flagged with clear caveats anywhere it depends on details
+(exact package/config layouts, Sysmon-for-Linux's supported event schema)
+that can only be confirmed once the real box exists.
+
+**The VMs themselves don't exist yet** — that's the next step, following
+[`docs/VM-BUILD-RUNBOOK.md`](docs/VM-BUILD-RUNBOOK.md) and then actually
+*running* Prompts 2, 3, 4, 4B's scripts inside each VM (see
+[`docs/prompt-chain.md`](docs/prompt-chain.md)). Everything that talks to a
+real VM (`run`/`check` execution, `containment-check`, `deploy`/`sigma test`,
+`detonate`, and all the provisioning scripts themselves) is written and
+tested against injected fakes / static analysis, but unverified against real
+Wazuh/VMware/Kali until then.
 
 ## Roadmap
 

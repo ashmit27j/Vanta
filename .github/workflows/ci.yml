@@ -27,3 +27,11 @@ jobs:
 
       - name: Validate Sigma rule syntax
         run: python -m purplelab.cli sigma convert
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shellcheck all provisioning scripts
+        run: shellcheck provision/*/install.sh provision/*/*/install.sh provision/kali/verify-network.sh

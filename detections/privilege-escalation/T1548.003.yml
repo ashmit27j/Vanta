@@ -1,0 +1,29 @@
+title: Direct Edit of sudoers File (Bypassing visudo)
+id: e8c7feef-08c2-4947-aecd-46584925a2d0
+status: experimental
+description: |
+    Detects a text editor opening /etc/sudoers or /etc/sudoers.d/ directly
+    instead of through visudo, which skips syntax validation and is a common
+    way to add unauthorized sudo privileges.
+references:
+    - https://attack.mitre.org/techniques/T1548/003/
+author: Vanta lab
+date: 2026-09-12
+tags:
+    - attack.privilege-escalation
+    - attack.t1548.003
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection:
+        Image|endswith:
+            - '/vi'
+            - '/vim'
+            - '/nano'
+            - '/sed'
+        CommandLine|contains: '/etc/sudoers'
+    condition: selection
+falsepositives:
+    - Administrators occasionally edit sudoers directly instead of via visudo
+level: high

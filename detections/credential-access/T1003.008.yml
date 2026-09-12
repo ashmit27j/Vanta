@@ -1,0 +1,28 @@
+title: Read Access to /etc/shadow via Common Utilities
+id: 87379373-609d-4640-b01d-1fb3590d4991
+status: experimental
+description: |
+    Detects common utilities (cat, cp, tar, base64) directly accessing
+    /etc/shadow, a common way to harvest password hashes for offline cracking.
+references:
+    - https://attack.mitre.org/techniques/T1003/008/
+author: Vanta lab
+date: 2026-09-12
+tags:
+    - attack.credential-access
+    - attack.t1003.008
+logsource:
+    category: process_creation
+    product: linux
+detection:
+    selection:
+        Image|endswith:
+            - '/cat'
+            - '/cp'
+            - '/tar'
+            - '/base64'
+        CommandLine|contains: '/etc/shadow'
+    condition: selection
+falsepositives:
+    - Backup jobs or configuration management tools that legitimately read /etc/shadow
+level: high
